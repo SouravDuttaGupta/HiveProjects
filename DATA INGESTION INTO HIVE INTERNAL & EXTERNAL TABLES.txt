@@ -1,0 +1,297 @@
+##############################################################################################
+
+- OVERALL PROJECT PURPOSE : LOAD DATA INTO HIVE TABLE
+
+- STEPS TO FOLLOW
+	> CREATE DATABASE
+	> CREATE TABLE
+	> LOAD DATA INTO HIVE TABLE
+
+- HIVE TABLES
+	> INTERNAL/MANAGED TABLE
+		> METADATA WILL BE MAINTAINED BY HIVE
+		> ACTUAL DATA WILL BE STORED IN HIVE WAREHOUSE
+		> ADVANTAGES :
+			>
+
+	> EXTERNAL TABLE
+		> META DATA WILL BE MAINTAINED BY HIVE
+		> ACTUAL DATA WILL BE AT SOURCE LOCATION
+		> IN THIS CASE, CREATE TABLE WILL POINT TO THE SOURCE DATA
+		> DATA WILL NOT BE MOVED INTO HIVE WAREHOUSE LOCATION
+		> ADVANTAGES :
+			> 
+
+- HOW INTERNAL TABLES ARE CREATED?
+	> METADATA IS MOVED INTO META STORE
+	> ACTUAL DATA IS MOVED INTO THE WAREHOUSE
+	> FLOW [HDFS -> LOAD IN HIVE -> DUMP INTO WAREHOUSE]
+
+- HOW EXTERNAL TABLES ARE CREATED?
+	> METADATA IS MOVED INTO META STORE
+	> ACTUAL DATA IS NOT MOVED INTO THE WAREHOUSE, RATHER STAYS AT THE SOURCE LOCATION (OR HDFS)
+	> TABLE DEFINATION IN HIVE FOR EXTERNAL TABLE WILL POINT TO THE SOURCE AND VALIDATED DURING READ TIME
+
+
+- 2 TYPES OF DATA LOAD IN HIVE
+	> LOAD FROM HDFS
+	> LOAD FROM LOCAL
+
+> GITHUB LINK : github.com/shashank-mishra219/Hive-Class
+
+
+> LOCATION OF THE TABLE IN HDFS: hdfs://quickstart.cloudera:8020/user/hive/warehouse/hive_class_b1.db/department_data
+
+##############################################################################################
+
+# CREATE A HIVE DATABASE
+# ----------------------
+create database hive_class_b1;
+use hive_class_b1;
+
+# CREATE INTERNAL TABLE
+# ---------------------
+create table department_data
+    > (                     
+    > dept_id int,          
+    > dept_name string,     
+    > manager_id int,       
+    > salary int)           
+    > row format delimited  
+    > fields terminated by ','; 
+    
+describe department_data;
+
+describe formatted department_data;
+
+# TABLE WILL BE CREATE IN THE WAREHOUSE DIRECTORY
+# EXAMPLE >> hdfs://quickstart.cloudera:8020/user/hive/warehouse/hive_class_b1.db/department_data
+
+# TO COME OUT OF HIVE
+> exit;
+
+# VERIFY THE WAREHOUSE DIRECTORY IN HADOOP
+> hadoop fs -ls /user/hive
+
+# VERIFY THE DATABASE "hive_class_b1"
+> hadoop fs -ls /user/hive/warehouse
+
+# VERIFY THE TABLE "department_data"
+> hadoop fs -ls /user/hive/warehouse/hive_class_b1*
+
+# RUN THE HIVE ENGINE AGAIN
+> hive
+
+# CONNECT TO THE DATABASE
+> use hive_class_b1;
+
+# DIAPLAY TABLES IN THE DATABASE
+> show tables;
+
+# << PHYSICALLY TRANSFER THE FILE TO THE LOCAL USING FileZilla >>
+
+# LOAD DATA INTO HIVE TBALE FROM LOCAL "temp" FOLDER
+load data local inpath 'file:///tmp/hive_class/depart_data.csv' into table department_data; 
+
+# (OR) LOAD DATA INTO HIVE TBALE FROM OTHER LOCAL FOLDER
+load data local inpath 'file:///home/cloudera/sourav/data/depart_data.csv' into table department_data; 
+
+# Display column name (DISPLAY HEADER ALONG WITH DATA IN A HIVE TABLE)
+set hive.cli.print.header = true;
+
+# SELECT DATA FROM THE TABLE
+> select * from department_data;
+
+# CREATE A DIRECTORY "data" IN THE HDFS/HADOOP LOCATION
+> hadoop fs -mkdir /user/cloudera/sourav/data
+
+# COPY FILE FROM LOCAL TO THE HDFS LOCATION
+> hadoop fs -put /home/cloudera/sourav/data/depart_data.csv /user/cloudera/sourav/data
+
+# RUN THE HIVE ENGINE AGAIN
+> hive
+
+# CONNECT TO THE DATABASE
+> use hive_class_b1;
+
+# Create internal table 
+create table department_data_from_hdfs  
+    > (                     
+    > dept_id int,          
+    > dept_name string,     
+    > manager_id int,       
+    > salary int            
+    > )                     
+    > row format delimited  
+    > fields terminated by ',';
+
+# DIAPLAY TABLES IN THE DATABASE
+> show tables;
+
+# Load data from hdfs location 
+## NOTES: DO NOT USE "local" KEY WORD TO COPY DATA FROM HDFS)
+##	  DO NOT USE TO FILE NAME TO COPY DATA
+## ----------------------------------------------------------------------------------
+## IMPORTANT:	DATA WILL BE MOVED TO THE HIVE LOCATION, 
+##		AND THE FILE IN THE SOURCE LOCATION WILL BE DELETED
+## ----------------------------------------------------------------------------------
+load data inpath '/user/cloudera/sourav/data/' into table department_data_from_hdfs;
+
+# Display column name
+set hive.cli.print.header = true;
+
+# SELECT DATA FROM THE TABLE
+> select * from department_data_from_hdfs;
+
+# TO COME OUT OF HIVE
+> exit;
+
+# COPY FILE FROM LOCAL TO THE HDFS LOCATION
+> hadoop fs -put /home/cloudera/sourav/data/depart_data.csv /user/cloudera/sourav/data
+
+# RUN THE HIVE ENGINE AGAIN
+> hive
+
+# CONNECT TO THE DATABASE
+> use hive_class_b1;
+
+# Create external table
+# --------------------------------------------------------------------------------------
+# NOTE: FOR EXTERNAL TABLE, 
+##	- TABLE WILL POINT TO THE DATA AT SOURCE
+##	- NO NEED TO LOAD DATA INTO HIVE WAREHOUSE
+##	- SOURCE FILE WILL STILL BE AVAILABLE UNLIKE IN CASE OF INTERNAL TABLE DATA LOAD
+# --------------------------------------------------------------------------------------
+create external table department_data_external      
+    > (                     
+    > dept_id int,          
+    > dept_name string,     
+    > manager_id int,       
+    > salary int            
+    > )                     
+    > row format delimited  
+    > fields terminated by ','
+    > location '/user/cloudera/sourav/data/';
+
+# TO COME OUT OF HIVE
+> exit;
+
+# CHECK IF THE FILE STILL EISTS IN THE SOURCE HDFS LOCATION
+> hadoop fs -ls /user/cloudera/sourav/data
+
+# CHECK FOR THE DATABASE FILE AS CREATED UNDER "/user/hive/warehouse" DIRECTORY
+> hadoop fs -ls /user/hive/warehouse
+
+# NAVIGATE THROUGH THE HIVE DB FILE
+## -----------------------------------------------------------------------------------------------
+## IMPORTANT POINTS TO NOTE:
+##	- IT WILL SHOW ONLY THE DIRECTORIES RELATED TO INTERNAL TABLES IN HIVE
+##		- "METADATA + ACTUAL DATA" IN HIVE
+##	- IT WILL NOT SHOW DIRECTORIES FOR EXTERNAL TABLES AS DATA IS NOT GETTING LOADED INTO HIVE
+##		- FOR EXTERNAL TABLES; WE WILL ONLY HAVE METADATA TO POINT TO THE SOURCE LOCATION
+##		- ONLY METADATA IN HIVE
+## -----------------------------------------------------------------------------------------------
+> hadoop fs -ls /user/hive/warehouse/hive_class_b1.db
+
+# RUN THE HIVE ENGINE AGAIN
+> hive
+
+# CONNECT TO THE DATABASE
+> use hive_class_b1;
+
+# APPLY DROP COMMAND TO DELETE TO TABLES
+> drop table department_data;
+> drop table department_data_from_hdfs;
+> drop table department_data_external;
+
+# NAVIGATE THROUGH THE HIVE DB FILE
+## NOTE: INTERNAL TABLES ARE NOW UNAVAILABLE
+> hadoop fs -ls /user/hive/warehouse/hive_class_b1.db
+
+# NAVIGATE THROUGH THE HDFS LOCATION
+## NOTE : SOURCE FILE WHICH THE EXTERNAL TABLE WAS POINTING STIL EXISTS, EVEN IF THE TABLE GOT DELETED
+##	  NO IMPACT ON THE SOURCE FILE
+> hadoop fs -ls /user/cloudera/sourav/data
+
+#######################################################
+########	WORKING WITH ARRAY DATA		#######
+#######################################################
+# CREATE A FILE FOR ARRAY DATA TYPE
+> vim array_data
+## NOTE: ADD DATA & SAVE USING {ESC+:WQ!+ENTER}
+
+# RENAME/ADD FILE EXTENSION
+> mv array_data array_data.csv
+
+# MOVE THE FILE INTO LOCAL DATA FOLDER
+> mv array_data.csv /home/cloudera/sourav/data/
+
+# RUN THE HIVE ENGINE AGAIN
+> hive
+
+# CONNECT TO THE DATABASE
+> use hive_class_b1;
+
+# work with Array data types
+# CREATE TABLE IN HIVE WITH ARRAY DATA TYPE
+create table employee       
+    > (                     
+    > id int,               
+    > name string,          
+    > skills array<string>  
+    > )                     
+    > row format delimited  
+    > fields terminated by ','
+    > collection items terminated by ':';           
+
+load data local inpath 'file:///tmp/hive_class/array_data.csv' into table employee; 
+
+# Display column name
+set hive.cli.print.header = true;
+
+# SELECT STATEMENT TO FETCH DATA FROM THE COLLECTION
+## Get element by index in hive array data type
+select id, name, skills[0] as prime_skill from employee;
+
+# APPLY COLLECTION FUNCTIONS TO FETCH DATA FROM A HIVE TABLE WITH ARRAY COLUMN
+select
+    > id,                   
+    > name,                 
+    > size(skills) as size_of_each_array,           
+    > array_contains(skills,"HADOOP") as knows_hadoop,                    
+    > sort_array(skills) as sorted_array          
+    > from employee; 
+
+
+# TABLE FOR MAP DATA IN THE FORM OF KEY/VALUE PAIR
+# MAP IS SIMILAR TO DATA DICTIONARY IN PYTHON (KEY/VALUE PAIR)
+create table employee_map_data
+    > (                     
+    > id int,               
+    > name string,          
+    > details map<string,string>                    
+    > )                     
+    > row format delimited  
+    > fields terminated by ','
+    > collection items terminated by '|'            
+    > map keys terminated by ':';
+
+load data local inpath 'file:///tmp/hive_class/map_data.csv' into table employee_map_data;
+
+select
+    > id,                   
+    > name,                 
+    > details["gender"] as employee_gender          
+    > from employee_map_data; 
+
+# map functions
+select
+    > id,                   
+    > name,                 
+    > details,              
+    > size(details) as size_of_each_map,            
+    > map_keys(details) as distinct_map_keys,       
+    > from employee_map_data; 
+
+# Assignment Dataset
+https://www.kaggle.com/datasets/imdevskp/corona-virus-report
